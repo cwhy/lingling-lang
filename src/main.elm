@@ -1,12 +1,17 @@
 module Main exposing (main)
 
-import Brackets exposing (Expr(..), evaluate, parse)
 import Browser
 import Debug
+import Dict
 import Element exposing (..)
 import Element.Background as Background
 import Element.Font as Font
 import Element.Input as Input
+import Html exposing (form)
+import Html.Events exposing (onSubmit)
+import Interpret exposing (interpret)
+import Syntax exposing (Expr(..), parse)
+import ViewExpr exposing (printExpr, viewVars)
 
 
 main =
@@ -22,22 +27,24 @@ type alias Model =
     , ast : Expr
     , output : String
     , error : String
+    , vars : Dict.Dict String Expr
     }
 
 
 init : Model
 init =
-    { text = "( + 12 4) 12"
+    { text = "~var <- (+ 4 12)"
     , ast = Empty
     , output = ""
     , error = ""
+    , vars = Dict.empty
     }
 
 
 type Msg
     = SetText String
     | UpdateAst
-    | Evaluate
+    | Interpret
 
 
 getAst : Model -> Model
@@ -59,22 +66,21 @@ update msg model =
         UpdateAst ->
             getAst model
 
-        Evaluate ->
-            { model | output = evaluate model.ast }
+        Interpret ->
+            model |> getAst |> interpret
 
 
-options string =
+inputOptions string =
     { onChange = SetText
     , text = string
     , placeholder = Just (Input.placeholder [] (text ""))
     , label = Input.labelAbove [] none
-    , spellcheck = False
     }
 
 
 printAst : Model -> String
 printAst =
-    Debug.toString << .ast
+    printExpr << .ast
 
 
 printErr : Model -> String
@@ -82,71 +88,99 @@ printErr =
     Debug.toString << .error
 
 
-view model =
-    Element.layout [ width fill, height fill ] <|
-        row [ width fill, height fill ]
-            [ column
-                [ height fill
-                , width <| fillPortion 2
-                , paddingXY 10 20
-                ]
-                [ Input.multiline
-                    [ height fill
-                    , Font.family
-                        [ Font.typeface "Fira Code"
-                        , Font.monospace
-                        ]
-                    ]
-                    (options model.text)
-                ]
-            , column
-                [ height fill
-                , width <| fillPortion 2
-                ]
-                [ row
-                    [ paddingXY 20 20
-                    , height <| fillPortion 1
-                    , width fill
-                    , spacing 20
-                    ]
-                    [ Input.button
-                        [ paddingXY 20 20
-                        , centerX
-                        , centerY
-                        , Background.color (rgba 0 0 0 0.1)
-                        ]
-                        { onPress = Just UpdateAst
-                        , label = text "Get AST"
-                        }
-                    , Input.button
-                        [ paddingXY 20 20
-                        , centerX
-                        , centerY
-                        , Background.color (rgba 0 0 0 0.1)
-                        ]
-                        { onPress = Just Evaluate
-                        , label = text "Evaluate"
-                        }
-                    ]
-                , paragraph
-                    [ height <| fillPortion 4
-                    , centerX
-                    , padding 50
-                    ]
-                    [ text (printAst model) ]
-                , paragraph
-                    [ height <| fillPortion 4
-                    , centerX
-                    , padding 50
-                    , Font.color <| rgb255 50 50 200
-                    ]
-                    [ text model.output ]
-                , paragraph
-                    [ height <| fillPortion 4
-                    , centerX
-                    , padding 50
-                    , Font.color <| rgb255 200 50 50
-                    ]
-                    [ text (printErr model) ]
-                ]
+viewLabels : String -> Element msg
+viewLabels str =
+    el
+        [ Font.family
+            [ Font.typeface "Charter"
+            , Font.typeface "Georgia"
+            , Font.serif
             ]
+        ]
+    <|
+        text str
+
+
+view : Model -> Html.Html Msg
+view model =
+    form [ onSubmit Interpret ]
+        [ Element.layout
+            [ width fill, height fill ]
+          <|
+            row [ width fill, height fill ]
+                [ column
+                    [ height fill
+                    , width <| fillPortion 2
+                    , paddingXY 30 30
+                    , spacing 10
+                    ]
+                    [ viewLabels "Commands:"
+                    , Input.text
+                        [ height (fillPortion 1 |> maximum 100)
+                        , Font.family
+                            [ Font.typeface "Fira Code"
+                            , Font.monospace
+                            ]
+                        ]
+                        (inputOptions model.text)
+                    , viewLabels "Runtime Info:"
+                    , el
+                        [ height <| fillPortion 4
+                        ]
+                        (viewVars model.vars)
+                    ]
+                , column
+                    [ height fill
+                    , width <| fillPortion 2
+                    ]
+                    [ row
+                        [ paddingXY 20 20
+                        , height <| fillPortion 1
+                        , width fill
+                        , spacing 20
+                        ]
+                        [ Input.button
+                            [ paddingXY 20 20
+                            , centerX
+                            , centerY
+                            , Background.color (rgba 0 0 0 0.1)
+                            ]
+                            { onPress = Just UpdateAst
+                            , label = text "Get AST"
+                            }
+                        , Input.button
+                            [ paddingXY 20 20
+                            , centerX
+                            , centerY
+                            , Background.color (rgba 0 0 0 0.1)
+                            ]
+                            { onPress = Just Interpret
+                            , label = text "Interpret"
+                            }
+                        ]
+                    , viewLabels "AST: "
+                    , paragraph
+                        [ height <| fillPortion 4
+                        , centerX
+                        , padding 50
+                        ]
+                        [ text (printAst model) ]
+                    , viewLabels "Output: "
+                    , paragraph
+                        [ height <| fillPortion 4
+                        , centerX
+                        , padding 50
+                        , Font.color <| rgb255 50 50 200
+                        ]
+                        [ text model.output ]
+                    , viewLabels "Errors: "
+                    , paragraph
+                        [ height <| fillPortion 4
+                        , centerX
+                        , padding 50
+                        , Font.color <| rgb255 200 50 50
+                        ]
+                        [ text (printErr model) ]
+                    ]
+                ]
+        ]

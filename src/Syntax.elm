@@ -1,77 +1,147 @@
-module Syntax exposing (Tet12Expr(..))
+module Syntax exposing
+    ( Expr(..)
+    , LetOp(..)
+    , SysOp(..)
+    , parse
+    )
 
-import Dict
-import List
 import Parser exposing (..)
-import String exposing (replace)
+import Set
 
 
-type Operator
-    = GlobalLetOp
 
-Dict.Dict String (Tet12Expr -> Tet12Expr)
+-- EXPRESSIONS
 
 
-operator : Parser Operator
+type SysOp
+    = Add
+
+
+type LetOp
+    = M1
+
+
+operator : Parser (Expr -> Expr -> Expr)
 operator =
     oneOf
-        [ map (\_ -> GlobalLetOp) (symbol "let")
+        [ map (\_ -> Sys Add) (symbol "+")
         ]
 
 
-type Tet12Expr
-    = Note String
-    | Notes (List String)
-    | ExprList (List Tet12Expr)
-    | GlobalLet Tet12Expr Tet12Expr
+letOps : Parser LetOp
+letOps =
+    oneOf
+        [ map (\_ -> M1) (symbol "<-")
+        ]
 
 
-parse : String -> Result (List DeadEnd) Tet12Expr
+type Expr
+    = Sys SysOp Expr Expr
+    | Let String LetOp Expr
+    | Note Char
+    | Identifier String
+    | Notes (List Char)
+    | Todo (List Expr)
+    | Empty
+
+
+parse : String -> Result (List DeadEnd) Expr
 parse string =
-    run expression string
+    run
+        (oneOf
+            [ commands
+            , term
+            ]
+        )
+        string
 
-node : Parser Tet12Expr
-node =
-    case
 
-term : Parser Tet12Expr
+
+-- PARSER
+
+
+getDigit : String -> Parser Expr
+getDigit str =
+    case String.toList str of
+        [] ->
+            problem "Unknown pattern"
+
+        char :: [] ->
+            case Char.isDigit char of
+                True ->
+                    succeed <| Note char
+
+                False ->
+                    problem "Note should be digits"
+
+        digits ->
+            succeed <| Notes digits
+
+
+digit : Parser Expr
+digit =
+    andThen getDigit <|
+        getChompedString <|
+            succeed ()
+                |. chompIf Char.isAlphaNum
+                |. chompWhile Char.isAlphaNum
+
+
+identifier : Parser String
+identifier =
+    oneOf
+        [ variable
+            { start = \c -> c == '~'
+            , inner = \c -> Char.isAlphaNum c || c == '_'
+            , reserved = Set.fromList [ "<-" ]
+            }
+        ]
+
+
+
+--digits : Parser (List Char)
+--digits =
+--    sequence
+--        { start = "{"
+--        , separator = ";"
+--        , end = "}"
+--        , spaces = spaces
+--        , item = digit
+--        , trailing = Mandatory -- demand a trailing semi-colon
+--        }
+
+
+term : Parser Expr
 term =
     oneOf
-        [  node
+        [ digit
         , succeed identity
             |. symbol "("
             |. spaces
-            |= lazy (\_ -> expression)
+            |= lazy (\_ -> term)
             |. spaces
             |. symbol ")"
-        ]
-
-
-expression : Parser Tet12Expr
-expression =
-    term
-        |> andThen (expressionHelp [])
-
-
-expressionHelp : List ( Tet12Expr, Operator ) -> Tet12Expr -> Parser Tet12Expr
-expressionHelp revOps expr =
-    oneOf
-        [ succeed Tuple.pair
+        , succeed identity
             |. spaces
             |= operator
             |. spaces
-            |= term
-            |> andThen (\( op, newExpr ) -> expressionHelp (( expr, op ) :: revOps) newExpr)
-        , lazy (\_ -> succeed (finalize revOps expr))
+            |= lazy (\_ -> term)
+            |. spaces
+            |= lazy (\_ -> term)
+            |. spaces
+        , andThen (\str -> succeed <| Identifier str) identifier
         ]
 
 
-
-finalize : List ( Tet12Expr, Operator ) -> Tet12Expr -> Tet12Expr
-finalize revOps finalExpr =
-    case revOps of
-        [] ->
-            finalExpr
-
-        ( expr, GlobalLetOp ) :: otherRevOps ->
-            GlobalLet (finalize otherRevOps expr) finalExpr
+commands : Parser Expr
+commands =
+    oneOf
+        [ succeed Let
+            |. spaces
+            |= identifier
+            |. spaces
+            |= letOps
+            |. spaces
+            |= lazy (\_ -> term)
+            |. spaces
+        ]
