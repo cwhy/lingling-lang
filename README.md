@@ -12,9 +12,9 @@ To reach it's final form, requires practicing coding 40 hours a day.
 
 ## Steps
 (unfinished)
-* String literals `"lit"`
+* String literals: `"lit"`
 
-* Global names, expression, eval `(.(<- var "lit"))`
+* Global names, expression, eval: `(.(<- var "lit"))`
 
 * Operations, expressions and eval
 
