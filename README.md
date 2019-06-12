@@ -18,13 +18,13 @@ To reach it's final form, requires practicing coding 40 hours a day.
 
 * Operations, expressions and eval
 
-- Operations&Expression `(to_upper "lit")`
+  - Operations&Expression `(to_upper "lit")`
 
-- Eval `(>> (to_upper "lit"))`
+  - Eval `(>> (to_upper "lit"))`
 
-- Eg. `(<- var (to_upper "lit"))`
+  - Eg. `(<- var (to_upper "lit"))`
 
-- Eg. `(<- var (>> (to_upper "lit")))`
+  - Eg. `(<- var (>> (to_upper "lit")))`
 
 * Do (>>> (<- var (to_upper "lit")) (<- var "litt"))
 
@@ -33,21 +33,21 @@ To reach it's final form, requires practicing coding 40 hours a day.
 
 * Global names, expression
 
-- `var <- "lit".`
+  - `var <- "lit".`
 
-- `var <- "lit"`
+  - `var <- "lit"`
 
 * Do operation `>> (var <- "lit") (klt <- var)`
 
 * Operations, expressions and eval
 
-- Operations&Expression `to upper: "lit"`
+  - Operations&Expression `to upper: "lit"`
 
-- Eval `(>> to upper: "lit")`
+  - Eval `(>> to upper: "lit")`
 
-- Eg. `var <- (to upper: "lit")` or `var <- to upper: "lit"`
+  - Eg. `var <- (to upper: "lit")` or `var <- to upper: "lit"`
 
-- Eg. `var <- (>> to upper: "lit")`
+  - Eg. `var <- (>> to upper: "lit")`
 
 * Local names `env [var <- (to upper: "lit"), kar <- "grad"]`
 
